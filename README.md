@@ -1,4 +1,4 @@
-1. Get report as CSV format from the stock company site
+1. Get report as CSV format from the stock company site  
    Visit "Activity Report" on https://atwork.morganstanley.com/solium/servlet/ui/activity/reports
 
 2. Prerare for working
