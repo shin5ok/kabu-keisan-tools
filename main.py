@@ -20,6 +20,8 @@ def calculate_total_value(data_str):
         elif 'Vest Date' in row:
             date_str = row['Vest Date']
 
+        date_str = utils.convert_date_format(date_str)
+
         quantity = float(row['Quantity'])
         price_usd = float(row['Price'].replace('$', ''))
         

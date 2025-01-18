@@ -64,6 +64,27 @@ def initialize_exchange_rates():
                 exchange_rates[date_key] = rate
             except ValueError:
                 continue
+def convert_date_format(date_str):
+    """Converts a date string from "dd-m-yyyy" to "dd-mmm-yyyy" format.
+
+    Args:
+        date_str: The date string in "dd-m-yyyy" or "dd-mmm-yyyy" format.
+
+    Returns:
+        The date string in "dd-mmm-yyyy" format if the input is "dd-m-yyyy",
+         otherwise returns the original input string. Returns None if the input is invalid.
+    """
+    try:
+        # First, try parsing with the target format. If successful, no conversion is needed.
+        datetime.strptime(date_str, '%d-%b-%Y')
+        return date_str  # Return original string if already in correct format
+    except ValueError:
+        try:
+            # If the target format fails, try parsing with the source format and convert.
+             date_obj = datetime.strptime(date_str, '%d-%m-%Y')
+             return date_obj.strftime('%d-%b-%Y')
+        except ValueError:
+            return None
 
 def get_exchange_rate(date_str):
     """
@@ -78,6 +99,7 @@ def get_exchange_rate(date_str):
     initialize_exchange_rates()
     global exchange_rates
     return exchange_rates.get(date_str)
+
 
 # 使用例
 if __name__ == "__main__":
