@@ -1,6 +1,7 @@
 import re
 from bs4 import BeautifulSoup
 from datetime import datetime
+import os
 
 import requests
 
@@ -17,13 +18,21 @@ def initialize_exchange_rates():
     """
 
     global sample_html
-    if not sample_html:
-        print("Getting rate html")
-        r = requests.get("https://www.77bank.co.jp/kawase/usd2024.html")
-        sample_html = r.content
-    
     global exchange_rates
+
+    # 環境変数からURLを取得、なければデフォルト値を使用
+    exchange_rate_url = os.environ.get("EXCHANGE_RATE_URL", "https://www.77bank.co.jp/kawase/usd2024.html")
     
+    if not sample_html:
+        print(f"Getting rate html from: {exchange_rate_url}")
+        try:
+            r = requests.get(exchange_rate_url)
+            r.raise_for_status()  # エラーレスポンス（4xx or 5xx）をチェック
+            sample_html = r.content
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching exchange rate data: {e}")
+            return  # エラーが発生した場合は処理を中断
+
     # BeautifulSoupでHTML解析
     soup = BeautifulSoup(sample_html, 'html.parser')
     
@@ -35,6 +44,14 @@ def initialize_exchange_rates():
     # 月の行を取得
     months = [th.text.strip() for th in table.find('tr').find_all('th')[1:]]  # 最初の"日付"列をスキップ
     
+    # URLから年を抽出
+    match = re.search(r"usd(\d{4})", exchange_rate_url)
+    if match:
+        year = int(match.group(1))
+    else:
+        print("Warning: Could not determine year from URL. Assuming current year.")
+        year = datetime.now().year
+
     # 各行のデータを処理
     for row in table.find_all('tr')[1:]:  # ヘッダー行をスキップ
         # 日付の列を取得
@@ -58,7 +75,7 @@ def initialize_exchange_rates():
                 rate = float(cell.text.strip())
                 
                 # 日付を生成 (YYYYMMDD形式)
-                date_key = f"2024{str(month_idx + 1).zfill(2)}{day}"
+                date_key = f"{year}{str(month_idx + 1).zfill(2)}{day}"
                 
                 # 為替レートを保存
                 exchange_rates[date_key] = rate
