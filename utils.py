@@ -81,6 +81,7 @@ def initialize_exchange_rates():
                 exchange_rates[date_key] = rate
             except ValueError:
                 continue
+
 def convert_date_format(date_str):
     """Converts a date string from "dd-m-yyyy" to "dd-mmm-yyyy" format.
 

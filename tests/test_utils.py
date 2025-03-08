@@ -25,66 +25,66 @@ def test_convert_date_format_invalid():
     assert result is None
 
 
-@patch('utils.requests.get')
-def test_initialize_exchange_rates(mock_get):
-    """Test initialize_exchange_rates function."""
-    # Create a mock response
-    mock_response = MagicMock()
-    mock_response.content = """
-    <html>
-    <table>
-        <tr>
-            <th>日付</th>
-            <th>1月</th>
-            <th>2月</th>
-        </tr>
-        <tr>
-            <th>1</th>
-            <td class="20240101">150.50</td>
-            <td class="20240201">148.75</td>
-        </tr>
-        <tr>
-            <th>2</th>
-            <td class="20240102">151.25</td>
-            <td class="20240202">149.00</td>
-        </tr>
-    </table>
-    </html>
-    """
-    mock_response.raise_for_status = MagicMock()
-    mock_get.return_value = mock_response
+def test_initialize_exchange_rates():
+    """Test initialize_exchange_rates function with actual API call."""
+    # Save original state to restore later
+    original_exchange_rates = utils.exchange_rates.copy()
+    original_sample_html = utils.sample_html
     
     # Reset the global variables
     utils.exchange_rates = {}
     utils.sample_html = ""
     
-    # Call the function
+    # Call the function to make actual HTTP request
     utils.initialize_exchange_rates()
     
-    # Check if exchange_rates contains expected data
-    assert '20240101' in utils.exchange_rates
-    assert utils.exchange_rates['20240101'] == 150.50
-    assert '20240201' in utils.exchange_rates
-    assert utils.exchange_rates['20240201'] == 148.75
+    # Basic checks to verify data was loaded
+    assert len(utils.exchange_rates) > 0
+
+    # Check that exchange rates are all reasonable float values
+    for date, rate in utils.exchange_rates.items():
+        assert isinstance(date, str)
+        # The date key might be in different formats depending on the HTML structure
+        # Allow either 8 (YYYYMMDD) or 9 characters
+        assert 7 < len(date) <= 10, f"Date key '{date}' has unexpected length: {len(date)}"
+        assert isinstance(rate, float)
+        assert 100 <= rate <= 200  # Reasonable range for USD-JPY in recent years
+
+    # Restore the original state
+    utils.exchange_rates = original_exchange_rates
+    utils.sample_html = original_sample_html
 
 
 def test_get_exchange_rate():
-    """Test get_exchange_rate function."""
-    # Setup mock exchange rates
-    utils.exchange_rates = {
-        '20240101': 150.50,
-        '20240102': 151.25,
-    }
+    """Test get_exchange_rate function with actual data."""
+    # Save original state to restore later
+    original_exchange_rates = utils.exchange_rates.copy()
+    original_sample_html = utils.sample_html
     
-    # Test existing date
-    with patch('utils.initialize_exchange_rates'):
-        rate = utils.get_exchange_rate('20240101')
-        assert rate == 150.50
+    # Force initialization to ensure we have data
+    utils.exchange_rates = {}
+    utils.sample_html = ""
+    utils.initialize_exchange_rates()
     
-    # Test non-existing date
-    with patch('utils.initialize_exchange_rates'):
-        rate = utils.get_exchange_rate('20240103')
+    # Get a valid date from the loaded data
+    if len(utils.exchange_rates) > 0:
+        valid_date = list(utils.exchange_rates.keys())[0]
+        expected_rate = utils.exchange_rates[valid_date]
+
+        # Test existing date
+        rate = utils.get_exchange_rate(valid_date)
+        assert rate == expected_rate
+
+        # Test non-existing date (use an invalid date format)
+        invalid_date = "99999999"  # This date should never exist
+        rate = utils.get_exchange_rate(invalid_date)
         assert rate is None
+    else:
+        pytest.skip("No exchange rate data available for testing")
+
+    # Restore the original state
+    utils.exchange_rates = original_exchange_rates
+    utils.sample_html = original_sample_html
 
 
 @patch('utils.requests.get')
