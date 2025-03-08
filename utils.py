@@ -116,7 +116,9 @@ def get_exchange_rate(date_str):
     """
     initialize_exchange_rates()
     global exchange_rates
-    return exchange_rates.get(date_str)
+    if date_str in exchange_rates:
+        return exchange_rates.get(date_str)
+    return None
 
 
 # 使用例

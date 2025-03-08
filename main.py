@@ -25,32 +25,35 @@ def calculate_total_value(data_str):
         quantity = float(row['Quantity'])
         price_usd = float(row['Price'].replace('$', ''))
         
-        # 日付をパースして為替レート検索用のキーを作成
-        date = datetime.strptime(date_str, '%d-%b-%Y')
-        rate_key = date.strftime('%Y%m%d')
+        try:
+            # 日付をパースして為替レート検索用のキーを作成
+            date = datetime.strptime(date_str, '%d-%b-%Y')
+            rate_key = date.strftime('%Y%m%d')
         
-        # 為替レートを取得
-        exchange_rates = utils.get_exchange_rate(rate_key)
-        if exchange_rates:
-            rate = exchange_rates
-            
-            # 計算
-            value_usd = price_usd * quantity
-            value_jpy = value_usd * rate
-            calcurate = (f"USD: {price_usd} * Quantity: {quantity}, Total USD: {value_usd} * JPY Rate/USD: {rate}")
+            # 為替レートを取得
+            exchange_rates = utils.get_exchange_rate(rate_key)
+            if exchange_rates:
+                rate = exchange_rates
 
-            
-            # 結果を保存
-            details.append({
-                'date': date_str,
-                'quantity': quantity,
-                'price_usd': price_usd,
-                'rate': rate,
-                'value_jpy': value_jpy,
-                'calcurate' : calcurate,
-            })
-            
-            total_jpy += value_jpy
+                # 計算
+                value_usd = price_usd * quantity
+                value_jpy = value_usd * rate
+                calcurate = (f"USD: {price_usd} * Quantity: {quantity}, Total USD: {value_usd} * JPY Rate/USD: {rate}")
+
+
+                # 結果を保存
+                details.append({
+                    'date': date_str,
+                    'quantity': quantity,
+                    'price_usd': price_usd,
+                    'rate': rate,
+                    'value_jpy': value_jpy,
+                    'calcurate' : calcurate,
+                })
+
+                total_jpy += value_jpy
+        except:
+            pass
     
     # 結果を表示
     print("=== 株のVest詳細 ===")
@@ -65,11 +68,9 @@ def calculate_total_value(data_str):
     
     print(f"\n総額: ¥{total_jpy:,.2f}(実数: {total_jpy})")
 
-# メイン処理
-if __name__ == "__main__":
-    # 標準入力からデータを読み込む
-    import sys
-    input_data = sys.stdin.read()
+# 標準入力からデータを読み込む
+import sys
+input_data = sys.stdin.read()
 
-    # 計算を実行
-    calculate_total_value(input_data)
+# 計算を実行
+calculate_total_value(input_data)
