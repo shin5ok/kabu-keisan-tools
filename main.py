@@ -63,11 +63,13 @@ def calculate_total_value(data_str):
         print(f"計算式: {detail['calcurate']}")
         print("-" * 40)
     
-    print(f"\n総額: ¥{total_jpy:,.2f}")
+    print(f"\n総額: ¥{total_jpy:,.2f}(実数: {total_jpy})")
 
-# 標準入力からデータを読み込む
-import sys
-input_data = sys.stdin.read()
+# メイン処理
+if __name__ == "__main__":
+    # 標準入力からデータを読み込む
+    import sys
+    input_data = sys.stdin.read()
 
-# 計算を実行
-calculate_total_value(input_data)
+    # 計算を実行
+    calculate_total_value(input_data)
