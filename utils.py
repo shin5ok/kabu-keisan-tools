@@ -7,59 +7,58 @@ import requests
 
 # グローバル変数として為替レートを保存
 exchange_rates = {}
-sample_html = ""
+sample_html_cache = {} # Cache for HTML content by year
 
-def initialize_exchange_rates():
+def initialize_exchange_rates(year):
     """
     HTMLコンテンツから為替レートを解析し、グローバル変数に保存する
     
     Args:
-        html_content (str): 解析対象のHTML文字列
+        year (int): The year for which to fetch exchange rates.
     """
 
-    global sample_html
+    global sample_html_cache
     global exchange_rates
 
-    # 環境変数からURLを取得、なければデフォルト値を使用
-    exchange_rate_url = os.environ.get("EXCHANGE_RATE_URL", "https://www.77bank.co.jp/kawase/usd2024.html")
+    # Check if data for this year is already loaded to avoid redundant fetches
+    if str(year) in sample_html_cache:
+        return
+
+    # 環境変数からURLフォーマットを取得、なければデフォルト値を使用
+    exchange_rate_url_format = os.environ.get("EXCHANGE_RATE_URL_FORMAT", "https://www.77bank.co.jp/kawase/usd{}.html")
+    exchange_rate_url = exchange_rate_url_format.format(year)
     
-    if not sample_html:
-        print(f"Getting rate html from: {exchange_rate_url}")
-        try:
-            r = requests.get(exchange_rate_url)
-            r.raise_for_status()  # エラーレスポンス（4xx or 5xx）をチェック
-            sample_html = r.content
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching exchange rate data: {e}")
-            return  # エラーが発生した場合は処理を中断
+    html_content = ""
+    print(f"Getting rate html from: {exchange_rate_url}")
+    try:
+        r = requests.get(exchange_rate_url)
+        r.raise_for_status()  # エラーレスポンス（4xx or 5xx）をチェック
+        html_content = r.content
+        sample_html_cache[str(year)] = html_content
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching exchange rate data for year {year}: {e}")
+        return  # エラーが発生した場合は処理を中断
 
     # BeautifulSoupでHTML解析
-    soup = BeautifulSoup(sample_html, 'html.parser')
+    soup = BeautifulSoup(html_content, 'html.parser')
     
     # テーブルを検索
     table = soup.find('table')
     if not table:
-        raise Exception("テーブルが見つかりませんでした")
+        # No table found, maybe the page for the year does not exist.
+        return
     
     # 月の行を取得
     months = [th.text.strip() for th in table.find('tr').find_all('th')[1:]]  # 最初の"日付"列をスキップ
     
-    # URLから年を抽出
-    match = re.search(r"usd(\d{4})", exchange_rate_url)
-    if match:
-        year = int(match.group(1))
-    else:
-        print("Warning: Could not determine year from URL. Assuming current year.")
-        year = datetime.now().year
-
     # 各行のデータを処理
     for row in table.find_all('tr')[1:]:  # ヘッダー行をスキップ
         # 日付の列を取得
-        day = row.find('th')
-        if not day or not day.text.strip().isdigit():
+        day_th = row.find('th')
+        if not day_th or not day_th.text.strip().isdigit():
             continue
         
-        day = day.text.strip().zfill(2)  # 1桁の日付を2桁に
+        day = day_th.text.strip().zfill(2)  # 1桁の日付を2桁に
         
         # 各月のデータを処理
         cells = row.find_all('td')
@@ -67,15 +66,13 @@ def initialize_exchange_rates():
             if not cell.text.strip() or cell.text.strip() == '\xa0':  # 空のセルをスキップ
                 continue
                 
-            # コメント内の日付を取得
-            comment = cell.get('class', [''])[0]  # classを取得
-            
             try:
                 # テキストから為替レートを取得
                 rate = float(cell.text.strip())
                 
                 # 日付を生成 (YYYYMMDD形式)
-                date_key = f"{year}{str(month_idx + 1).zfill(2)}{day}"
+                month = str(month_idx + 1).zfill(2)
+                date_key = f"{year}{month}{day}"
                 
                 # 為替レートを保存
                 exchange_rates[date_key] = rate
@@ -114,28 +111,31 @@ def get_exchange_rate(date_str):
     Returns:
         float: 為替レート。データが存在しない場合はNone
     """
-    initialize_exchange_rates()
+    if not date_str or not date_str.isdigit() or len(date_str) != 8:
+        return None
+
+    year = int(date_str[:4])
+    initialize_exchange_rates(year)
+    
     global exchange_rates
-    if date_str in exchange_rates:
-        return exchange_rates.get(date_str)
-    return None
+    return exchange_rates.get(date_str)
 
 
 # 使用例
 if __name__ == "__main__":
-    # 初期化
-    initialize_exchange_rates()
-    
-    # データ確認
-    print("取得した為替レートデータ:")
-    for date, rate in sorted(exchange_rates.items()):
-        print(f"{date}: {rate}")
-    
     # 特定の日付の為替レート取得例
     import sys
-    test_date = sys.argv[1]
-    rate = get_exchange_rate(test_date)
-    if rate:
-        print(f"\n{test_date}の為替レート: {rate}")
+    if len(sys.argv) > 1:
+        test_date = sys.argv[1]
+        rate = get_exchange_rate(test_date)
+        if rate:
+            print(f"\n{test_date}の為替レート: {rate}")
+        else:
+            print(f"\n{test_date}の為替レートは見つかりませんでした")
+
+        # データ確認
+        print("\n取得した為替レートデータ:")
+        for date, rate in sorted(exchange_rates.items()):
+            print(f"{date}: {rate}")
     else:
-        print(f"\n{test_date}の為替レートは見つかりませんでした")
+        print("Usage: python utils.py YYYYMMDD")
